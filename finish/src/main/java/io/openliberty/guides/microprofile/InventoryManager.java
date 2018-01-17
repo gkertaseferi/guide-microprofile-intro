@@ -19,6 +19,11 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import org.eclipse.microprofile.metrics.Metadata;
+import org.eclipse.microprofile.metrics.MetricRegistry;
+import org.eclipse.microprofile.metrics.MetricType;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.Timer;
 
 import io.openliberty.guides.microprofile.util.InventoryUtil;
 import io.openliberty.guides.microprofile.util.ReadyJson;
@@ -31,6 +36,25 @@ public class InventoryManager {
 // end::header[]
 
     private ConcurrentMap<String, JsonObject> inv = new ConcurrentHashMap<>();
+    private MetricRegistry registry;
+    private Timer testDataCalcTimer;
+
+    public InventoryManager() {
+        registry = InventoryApplication.registry;
+        setupMetrics();
+    }
+
+    public void setupMetrics() {
+        // Timer
+        Metadata testDataCalcTimerMetadata = new Metadata(
+           "testDataCalcTimer",                             // name
+           "Test Data Calculation Time",                    // display name
+           "Processing time to find the test data",         // description
+           MetricType.TIMER,                                   // type
+           MetricUnits.NANOSECONDS);                           // units
+           System.out.println("Test 3: " + registry);
+           testDataCalcTimer = registry.timer(testDataCalcTimerMetadata);
+   }
 
     // tag::imp[]
     // tag::get[]
@@ -60,6 +84,8 @@ public class InventoryManager {
 
     // tag::list[]
     public JsonObject list() {
+        // Start timing here
+        Timer.Context context = testDataCalcTimer.time();
         // tag::method-contents[]
         JsonObjectBuilder systems = Json.createObjectBuilder();
         inv.forEach((host, props) -> {
@@ -71,7 +97,11 @@ public class InventoryManager {
         });
         systems.add("hosts", systems);
         systems.add("total", inv.size());
-        return systems.build();
+        JsonObject result = systems.build();
+        
+        // Stop timing
+        context.close();
+        return result;
         // end::method-contents[]
     }
     // end::list[]
